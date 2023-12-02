@@ -6,7 +6,7 @@
 #include "game.hpp"
 
 std::unordered_map<Cube, uint32_t> getMinimumSet(const Game& g);
-uint32_t getPower(const std::unordered_map<Cube, uint32_t> set);
+uint32_t getPower(const std::unordered_map<Cube, uint32_t>& set);
 
 int main() {
     std::string line;
@@ -30,7 +30,7 @@ std::unordered_map<Cube, uint32_t> getMinimumSet(const Game& g) {
     return set;
 }
 
-uint32_t getPower(const std::unordered_map<Cube, uint32_t> set) {
+uint32_t getPower(const std::unordered_map<Cube, uint32_t>& set) {
     uint32_t power = 1;
     for (const auto& [_, count] : set) {
         power *= count;

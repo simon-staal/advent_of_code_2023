@@ -9,13 +9,13 @@ bool isGamePossible(const Game& g);
 
 int main() {
     std::string line;
-    uint32_t sumOfImpossibleIds = 0;
+    uint32_t sumOfPossibleIds = 0;
     while (std::getline(std::cin, line)) {
         Game g {Game::FromString(line + ';')}; // Add a semi-colon to regularise input
-        sumOfImpossibleIds += g.id * isGamePossible(g);
+        sumOfPossibleIds += g.id * isGamePossible(g);
     }
 
-    std::cout << sumOfImpossibleIds << std::endl;
+    std::cout << sumOfPossibleIds << std::endl;
 }
 
 bool isGamePossible(const Game& g) {
