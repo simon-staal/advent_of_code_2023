@@ -10,23 +10,26 @@
 #include <algorithm>
 
 using namespace std::literals;
-
 // Uppgraded to uint64_t because overflow shit on me
+using SeedMappings = std::vector<std::map<uint64_t, int64_t>>;
+using SeedRanges = std::vector<std::pair<uint64_t, uint64_t>>;
 
-std::pair<std::vector<std::pair<uint64_t, uint64_t>>, std::vector<std::map<uint64_t, int64_t>>> parseInput();
-std::map<uint64_t, int64_t> flattenSeedMappings(const std::vector<std::map<uint64_t, int64_t>>& seedMappings);
+std::pair<SeedRanges, SeedMappings> parseInput();
+std::map<uint64_t, int64_t> combineSeedMappings(const SeedMappings& seedMappings);
 
 int main() {
 	const auto [seeds, seedMappings] = parseInput();
-	std::map<uint64_t, int64_t> seedLocationOffsets = flattenSeedMappings(seedMappings);
+	std::map<uint64_t, int64_t> seedLocationOffsets = combineSeedMappings(seedMappings);
 
 	uint64_t minLocation = std::numeric_limits<uint64_t>::max();
 	for (const auto& [seed, range] : seeds) {
 		uint64_t seedStart = seed;
 		auto offsetIt = seedLocationOffsets.upper_bound(seedStart);
 		while (offsetIt->first <= seed + range) {
-			minLocation = std::min(minLocation, seedStart + offsetIt->second);
-			seedStart = offsetIt->first;
+            const auto [nextBound, offset] = *offsetIt;
+            // Only need to check first seed in range as seeds are monotonically increasing within range
+			minLocation = std::min(minLocation, seedStart + offset);
+			seedStart = nextBound;
 			offsetIt++;
 		}
 	}
@@ -34,64 +37,63 @@ int main() {
 	std::cout << minLocation << std::endl;
 }
 
-std::pair<std::vector<std::pair<uint64_t, uint64_t>>, std::vector<std::map<uint64_t, int64_t>>> parseInput() {
-	std::vector<std::pair<uint64_t, uint64_t>> seeds;
+std::pair<SeedRanges, SeedMappings> parseInput() {
+	SeedRanges seeds;
 	std::cin.ignore("seeds: "sv.size(), ' ');
-	uint64_t seed;
-	while (std::cin >> seed) {
-		uint64_t range;
-		std::cin >> range;
+	uint64_t seed, range;
+	while (std::cin >> seed >> range) {
 		seeds.emplace_back(seed, range);
 	}
 
-	std::vector<std::map<uint64_t, int64_t>> seedMappings;
+	SeedMappings mappings;
 	while (!std::cin.eof()) {
 		std::cin.clear();
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Ignore map header
 
-		std::map<uint64_t, int64_t> mapping;
-		uint64_t destinationStart;
-		while (std::cin >> destinationStart) {
-			uint64_t sourceStart;
-			uint64_t length;
-			std::cin >> sourceStart >> length;
-			
-			mapping.try_emplace(sourceStart, 0);
-			mapping[sourceStart + length] = destinationStart - sourceStart;
+		std::map<uint64_t, int64_t> currentMapping;
+		uint64_t destinationStart, sourceStart, length;
+		while (std::cin >> destinationStart >> sourceStart >> length) {			
+			currentMapping.try_emplace(sourceStart, 0);
+			currentMapping[sourceStart + length] = destinationStart - sourceStart;
 		}
-        // Ensure we always have lower + upper bounds
-        mapping.try_emplace(std::numeric_limits<uint64_t>::min(), 0);
-		mapping.try_emplace(std::numeric_limits<uint64_t>::max(), 0); 
-
-		seedMappings.push_back(std::move(mapping));
+		currentMapping.emplace(std::numeric_limits<uint64_t>::max(), 0); // Ensure we always have an upper bound
+		mappings.push_back(std::move(currentMapping));
 	}
 
-	return {std::move(seeds), std::move(seedMappings)};
+	return {std::move(seeds), std::move(mappings)};
 }
 
-std::map<uint64_t, int64_t> flattenSeedMappings(const std::vector<std::map<uint64_t, int64_t>>& seedMappings) {
-	std::map<uint64_t, int64_t> flattenedMappings = seedMappings[0];
+std::map<uint64_t, int64_t> combineSeedMappings(const SeedMappings& seedMappings) {
+	std::map<uint64_t, int64_t> combinedMappings {
+        {0, 0},
+        {std::numeric_limits<uint64_t>::max(), 0}
+    };
 
-	for (const auto& mapping : seedMappings | std::views::drop(1)) {
+	for (const auto& newMapping : seedMappings) {
         std::map<uint64_t, int64_t> joinedMap {{0, 0}};
-        for (auto it = flattenedMappings.cbegin(); it != flattenedMappings.cend();) {
-               auto prev = it;
-            it++;
-            if (it == flattenedMappings.cend())
+        for (auto currIt = combinedMappings.cbegin(); currIt != combinedMappings.cend();) {
+            auto prevIt = currIt;
+            currIt++;
+            if (currIt == combinedMappings.cend())
                 break;
-            auto [prevBound, _] = *prev;
-            auto [currBound, offset] = *it;
-            uint64_t startOfRange = prevBound + offset;
-            uint64_t endOfRange = currBound + offset;
-            auto offsetIt = mapping.upper_bound(startOfRange);
-            while (offsetIt->first < endOfRange) {
-                joinedMap[prevBound + offsetIt->first - startOfRange] = offset + offsetIt->second;
-                offsetIt++;
+            
+            const auto [rangeStart, _] = *prevIt;
+            const auto [rangeEnd, cumulativeOffset] = *currIt;
+
+            const uint64_t mappedRangeStart = rangeStart + cumulativeOffset;
+            const uint64_t mappedRangeEnd = rangeEnd + cumulativeOffset;
+
+            auto newOffsetIt = newMapping.upper_bound(mappedRangeStart);
+            while (newOffsetIt->first < mappedRangeEnd) {
+                const auto [newBound, newOffset] = *newOffsetIt;
+                const uint64_t length = newBound - mappedRangeStart;
+                joinedMap[rangeStart + length] = cumulativeOffset + newOffset;
+                newOffsetIt++;
             }
-            joinedMap[currBound] = offset + offsetIt->second;
+            joinedMap[rangeEnd] = cumulativeOffset + newOffsetIt->second;
         }
-        flattenedMappings = std::move(joinedMap);
+        combinedMappings = std::move(joinedMap);
 	}
 
-	return flattenedMappings;
+	return combinedMappings;
 }
