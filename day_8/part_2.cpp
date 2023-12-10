@@ -32,7 +32,8 @@ int main() {
         steps.push_back(calculateStepsToEnd(start, directions, network));
     }
 
-	std::cout << lcm(steps) << '\n';
+    // I'm not sure why this works, can't figure out from the question why we're guaranteed for this to be true...
+	std::cout << lcm(steps) << std::endl;
 }
 
 std::pair<std::string, Network> parseInput() {
