@@ -33,6 +33,7 @@ std::vector<std::vector<int32_t>> parseInput() {
     return report;
 }
 
+// I feel as though there's some nice mathematical way to find a closed-form solution to this problem (it kinda looks like a rotated Pascal's triangle), but I cba figuring it out
 int32_t predictNextValue(const std::vector<int32_t>& history) {
     std::vector<std::vector<int32_t>> stackOfDifferences {history};
     auto isNonZero = [](int32_t x) { return x != 0; };

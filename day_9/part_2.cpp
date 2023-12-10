@@ -5,6 +5,7 @@
 #include <sstream>
 #include <ranges>
 
+// This solution is a "hybrid" which could be used for both part 1 and 2 by just switching the PredictionType passed to predictNextValue()
 enum class PredictionType {
     Past,
     Future
